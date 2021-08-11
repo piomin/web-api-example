@@ -1,5 +1,0 @@
-apiVersion: skaffold/v2beta8
-kind: Config
-build:
-  artifacts:
-  - image: piomin/person-service

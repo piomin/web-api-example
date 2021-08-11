@@ -40,7 +40,7 @@ namespace web_api_example.Controllers
         [Route("/")]
         public Person AddNew([FromBody] Person person)
         {
-            _logger.LogInformation("Add New name={Name}", person.Name);
+            _logger.LogInformation("Add New Name={Name}", person.Name);
             person.Id = _persons.Count + 1;
             _persons.Add(person);
             return person;

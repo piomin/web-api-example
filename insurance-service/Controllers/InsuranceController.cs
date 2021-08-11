@@ -61,7 +61,7 @@ namespace insurance_service.Controllers
         {
             _logger.LogInformation("Find Details By Id={Id}", id);
             var insurance = _insurances.Find(insurance => insurance.Id == id);
-            var webRequest = new HttpRequestMessage(HttpMethod.Get, "http://person-service-app:8080/" + id);
+            var webRequest = new HttpRequestMessage(HttpMethod.Get, "http://person-service:8080/" + id);
             var responseMessage = _client.Send(webRequest);
             var reader = new StreamReader(responseMessage.Content.ReadAsStream());
             var content = reader.ReadToEnd();
