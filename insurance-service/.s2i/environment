@@ -1,0 +1,2 @@
+DOTNET_STARTUP_PROJECT=./insurance-service.csproj
+DOTNET_TEST_PROJECTS=./insurance-service.csproj
