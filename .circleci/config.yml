@@ -15,7 +15,7 @@ jobs:
             - dotnet-packages-v1-{{ checksum "person-service/person-service.csproj" }}
       - run:
           name: "Install project dependencies"
-          command: dotnet.exe restore
+          command: dotnet.exe restore person-service
       - save_cache:
           paths:
             - C:\Users\circleci\.nuget\packages
