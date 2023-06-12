@@ -27,7 +27,7 @@ jobs:
           key: dotnet-packages-v1-{{ checksum "insurance-service/insurance-service.csproj" }}
       - run:
           name: "Run Application Tests"
-          command: dotnet.exe test -v n --results-directory:test_coverage --collect:"Code Coverage" person-service
+          command: dotnet.exe test -v n --results-directory:test_coverage --collect:"Code Coverage"
       - run:
           name: "Print Working Directory"
           command: pwd
