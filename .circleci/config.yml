@@ -22,7 +22,7 @@ jobs:
           key: dotnet-packages-v1-{{ checksum "person-service/person-service.csproj" }}
       - run:
           name: "Run Application Tests"
-          command: dotnet.exe test -v n --results-directory:test_coverage --collect:"Code Coverage"
+          command: dotnet.exe test -v n --results-directory:test_coverage --collect:"Code Coverage" person-service
       - run:
           name: "Print Working Directory"
           command: pwd
