@@ -36,6 +36,13 @@ namespace web_api_example.Controllers
             return _persons.Find(person => person.Id == id);
         }
 
+        [HttpGet]
+        [Route("/age-greater-than/{age:int}")]
+        public List<Person> FindByAgeGreaterThan([FromRoute] int age) {
+            _logger.LogInformation("Find By Age>{age}", age);
+            return _persons.FindAll(person => person.Age > age);
+        }
+
         [HttpPost]
         [Route("/")]
         public Person AddNew([FromBody] Person person)
