@@ -1,0 +1,72 @@
+schemaVersion: 2.1.0
+metadata:
+  name: dotnet
+components:
+  - name: tools
+    container:
+      image: registry.redhat.io/devspaces/udi-rhel8:3.11
+      memoryLimit: '2Gi'
+      memoryRequest: '1Gi'
+      cpuLimit: '1'
+      cpuRequest: '0.5'
+      mountSources: true
+      endpoints:
+        - exposure: public
+          name: 'hello-endpoint'
+          protocol: https
+          targetPort: 5032
+      volumeMounts:
+        - name: nuget
+          path: /home/user/.nuget
+  - name: postgresql
+    container:
+      image: registry.redhat.io/rhel9/postgresql-15
+      env:
+        - name: POSTGRESQL_USER
+          value: dotnet
+        - name: POSTGRESQL_PASSWORD
+          value: dotnet123
+        - name: POSTGRESQL_DATABASE
+          value: sampledb
+      endpoints:
+        - name: postgresql
+          exposure: internal
+          targetPort: 5432
+          attributes:
+            discoverable: 'true'
+      memoryLimit: 512Mi
+      mountSources: true
+      volumeMounts:
+        - name: postgresql-storage
+          path: /var/lib/postgresql/data
+  - name: postgresql-storage
+    volume:
+      size: 256Mi
+  - name: nuget
+    volume:
+      size: 1G
+commands:
+  - id: 1-update-dependencies
+    exec:
+      label: 1.Update dependencies
+      component: tools
+      workingDir: ${PROJECTS_ROOT}/web-api-example/person-service
+      commandLine: "dotnet restore"
+      group:
+        kind: build
+  - id: 2-build
+    exec:
+      label: 2.Build
+      component: tools
+      workingDir: ${PROJECTS_ROOT}/web-api-example/person-service
+      commandLine: "dotnet build"
+      group:
+        kind: build
+  - id: 3-run
+    exec:
+      label: 3.Run
+      component: tools
+      workingDir: ${PROJECTS_ROOT}/web-api-example/person-service
+      commandLine: "dotnet run"
+      group:
+        kind: run
