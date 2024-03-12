@@ -1,11 +1,9 @@
-using System;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace web_api_example.Model
 {
     [Table("persons")]
-    public class Person : DbContext
+    public class Person
     {
         [System.ComponentModel.DataAnnotations.Key]
         [Column("id")] 

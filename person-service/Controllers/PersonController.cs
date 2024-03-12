@@ -8,7 +8,7 @@ using web_api_example.Data;
 namespace web_api_example.Controllers
 {
     [ApiController]
-    [Route("persons/[controller]")]
+    [Route("persons")]
     public class PersonController : ControllerBase
     {
         private readonly ILogger<PersonController> _logger;
@@ -25,7 +25,7 @@ namespace web_api_example.Controllers
         }
 
         [HttpGet]
-        [Route("/")]
+        // [Route("/")]
         public List<Person> FindAll()
         {
             _logger.LogInformation("Find All");
@@ -34,9 +34,9 @@ namespace web_api_example.Controllers
             return _context.Persons.ToList();
         }
         
-        [HttpGet]
-        [Route("/{id:int}")]
-        public Person FindById([FromRoute] int id)
+        [HttpGet("{id:int}")]
+        // [Route("/{id:int}")]
+        public Person FindById(int id)
         {
             _logger.LogInformation("Find By Id={Id}", id);
             // return _persons.Find(person => person.Id == id);
@@ -44,9 +44,9 @@ namespace web_api_example.Controllers
             return _context.Persons.Find(id);
         }
 
-        [HttpGet]
-        [Route("/age-greater-than/{age:int}")]
-        public List<Person> FindByAgeGreaterThan([FromRoute] int age) {
+        [HttpGet("age-greater-than/{age:int}")]
+        // [Route("/age-greater-than/{age:int}")]
+        public List<Person> FindByAgeGreaterThan(int age) {
             _logger.LogInformation("Find By Age>{age}", age);
             // using var db = new PersonsDbContext();
             return _context.Persons.Where(person => person.Age > age).ToList();
@@ -54,7 +54,7 @@ namespace web_api_example.Controllers
         }
 
         [HttpPost]
-        [Route("/")]
+        // [Route("/")]
         public Person AddNew([FromBody] Person person)
         {
             _logger.LogInformation("Add New Name={Name}", person.Name);

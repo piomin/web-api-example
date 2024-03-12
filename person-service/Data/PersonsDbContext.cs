@@ -10,6 +10,7 @@ namespace web_api_example.Data {
         {
         }
 
+
         public DbSet<Person> Persons { get; set; }
 
     }

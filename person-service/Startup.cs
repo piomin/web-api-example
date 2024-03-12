@@ -11,6 +11,7 @@ namespace web_api_example
     public class Startup
     {
         private readonly IConfiguration _configuration;
+
         public Startup(IConfiguration configuration)
         {
             _configuration = configuration;
@@ -45,6 +46,11 @@ namespace web_api_example
             app.UseHealthChecks("/health");
             app.UseRouting();
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+
+            using var scope = app.ApplicationServices.CreateScope();
+            var services = scope.ServiceProvider;
+            var context = services.GetRequiredService<PersonsDbContext>();
+            context.Database.EnsureCreated();
         }
     }
 }
