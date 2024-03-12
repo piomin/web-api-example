@@ -39,9 +39,33 @@ components:
     image: registry.access.redhat.com/ubi8/dotnet-70:latest
     mountSources: true
   name: dotnet
+- name: postgresql
+  container:
+    image: registry.redhat.io/rhel9/postgresql-15
+    env:
+      - name: POSTGRESQL_USER
+        value: dotnet
+      - name: POSTGRESQL_PASSWORD
+        value: dotnet123
+      - name: POSTGRESQL_DATABASE
+        value: sampledb
+    endpoints:
+      - name: postgresql
+        exposure: internal
+        targetPort: 5432
+        attributes:
+          discoverable: 'true'
+    memoryLimit: 512Mi
+    mountSources: true
+    volumeMounts:
+      - name: postgresql-storage
+        path: /var/lib/postgresql/data
+- name: postgresql-storage
+  volume:
+    size: 256Mi
 metadata:
-  description: .NET 6.0 application
-  displayName: .NET 6.0
+  description: .NET 7.0 application
+  displayName: .NET 7.0
   icon: https://github.com/dotnet/brand/raw/main/logo/dotnet-logo.png
   language: .NET
   name: person-service
@@ -55,7 +79,7 @@ starterProjects:
 - git:
     checkoutFrom:
       remote: origin
-      revision: dotnet-6.0
+      revision: dotnet-7.0
     remotes:
       origin: https://github.com/redhat-developer/s2i-dotnetcore-ex
   name: dotnet60-example
