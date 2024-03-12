@@ -31,7 +31,7 @@ components:
     - name: CONFIGURATION
       value: Debug
     - name: STARTUP_PROJECT
-      value: app.csproj
+      value: person-service.csproj
     - name: ASPNETCORE_ENVIRONMENT
       value: Development
     - name: ASPNETCORE_URLS
