@@ -1,0 +1,200 @@
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - person-service/*
+
+variables:
+  solution: 'person-service/person-service.csproj'
+  buildConfiguration: 'Release'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  sonarProjectKey: 'person-service'
+  sonarOrganization: 'piomin'
+  # OpenShift variables
+  ocpClusterUrl: '$(OCP_CLUSTER_URL)'
+  ocpToken: '$(OCP_TOKEN)'
+  ocpNamespace: '$(OCP_NAMESPACE)'
+  imageStream: 'person-service'
+  imageTag: '$(Build.BuildId)'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  jobs:
+  - job: BuildAndTest
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        version: '9.x'
+        includePreviewVersions: true
+
+    - task: NuGetToolInstaller@1
+      inputs:
+        versionSpec: '6.x'
+        checkLatest: true
+
+    - task: NuGetCommand@2
+      displayName: 'NuGet restore'
+      inputs:
+        command: 'restore'
+        restoreSolution: '$(solution)'
+        feedsToUse: 'select'
+
+    - task: SonarCloudPrepare@1
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: '$(sonarOrganization)'
+        scannerMode: 'MSBuild'
+        projectKey: '$(sonarProjectKey)'
+        projectName: 'Person Service'
+        extraProperties: |
+          sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/coverage.opencover.xml
+          sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
+
+    - task: VSBuild@1
+      displayName: 'Build solution'
+      inputs:
+        solution: '$(solution)'
+        configuration: '$(buildConfiguration)'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true'
+
+    - task: VSTest@2
+      displayName: 'Run Tests'
+      inputs:
+        testSelector: 'testAssemblies'
+        testAssemblyVer2: |
+          **\*tests.dll
+          !**\*TestAdapter.dll
+          !**\obj\**
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        codeCoverageEnabled: true
+        testRunTitle: 'Person Service Tests'
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
+        publishTestResults: true
+        collectDumpOn: 'onAbortOnly'
+
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish Code Coverage'
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage.cobertura.xml'
+        failIfCoverageEmpty: true
+
+    - task: SonarCloudAnalyze@1
+      displayName: 'Run SonarCloud Analysis'
+
+    - task: SonarCloudPublish@1
+      displayName: 'Publish SonarCloud Results'
+      inputs:
+        pollingTimeoutSec: '300'
+
+    - task: NuGetCommand@2
+      displayName: 'NuGet pack'
+      inputs:
+        command: 'pack'
+        packagesToPack: '$(solution)'
+        configuration: '$(buildConfiguration)'
+        packDestination: '$(Build.ArtifactStagingDirectory)'
+        versioningScheme: 'byBuildNumber'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Build Artifacts'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'person-service'
+        publishLocation: 'Container'
+
+- stage: Quality
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - job: QualityGate
+    steps:
+    - task: SonarCloudQualityGate@1
+      inputs:
+        pollingTimeoutSec: '300'
+      displayName: 'Check Quality Gate'
+
+- stage: BuildContainer
+  dependsOn: Quality
+  condition: succeeded()
+  jobs:
+  - job: BuildOnOpenShift
+    steps:
+    - task: oc-cmd@2
+      displayName: 'Login to OpenShift'
+      inputs:
+        cmd: 'login'
+        serverUrl: '$(ocpClusterUrl)'
+        token: '$(ocpToken)'
+        
+    - task: oc-cmd@2
+      displayName: 'Switch to Project'
+      inputs:
+        cmd: 'project $(ocpNamespace)'
+
+    - task: oc-cmd@2
+      displayName: 'Create/Update BuildConfig'
+      inputs:
+        cmd: |
+          oc process -f - | oc apply -f - <<EOF
+          apiVersion: template.openshift.io/v1
+          kind: Template
+          metadata:
+            name: person-service-build
+          objects:
+          - apiVersion: build.openshift.io/v1
+            kind: BuildConfig
+            metadata:
+              name: person-service
+            spec:
+              output:
+                to:
+                  kind: ImageStreamTag
+                  name: ${IMAGE_STREAM}:${IMAGE_TAG}
+              source:
+                binary: {}
+                type: Binary
+              strategy:
+                sourceStrategy:
+                  from:
+                    kind: ImageStreamTag
+                    name: 'dotnet:9.0-ubi8'
+                    namespace: openshift
+                  env:
+                  - name: DOTNET_STARTUP_PROJECT
+                    value: person-service/person-service.csproj
+                  - name: DOTNET_CONFIGURATION
+                    value: Release
+                  - name: DOTNET_RESTORE_SOURCES
+                    value: https://api.nuget.org/v3/index.json
+                type: Source
+          - apiVersion: image.openshift.io/v1
+            kind: ImageStream
+            metadata:
+              name: ${IMAGE_STREAM}
+            spec:
+              lookupPolicy:
+                local: true
+          parameters:
+          - name: IMAGE_STREAM
+            value: $(imageStream)
+          - name: IMAGE_TAG
+            value: $(imageTag)
+          EOF
+
+    - task: oc-cmd@2
+      displayName: 'Start Binary Build'
+      inputs:
+        cmd: |
+          oc start-build $(imageStream) \
+            --from-dir=$(Build.ArtifactStagingDirectory) \
+            --follow
+
+

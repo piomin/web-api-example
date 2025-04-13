@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using insurance_service.Message;
 using insurance_service.Model;
 using Microsoft.AspNetCore.Mvc;
@@ -57,14 +58,14 @@ namespace insurance_service.Controllers
 
         [HttpGet]
         [Route("/{id:int}/details")]
-        public InsuranceDetails FindDetailsById([FromRoute] int id)
+        public async Task<InsuranceDetails> FindDetailsById([FromRoute] int id)
         {
             _logger.LogInformation("Find Details By Id={Id}", id);
             var insurance = _insurances.Find(insurance => insurance.Id == id);
             var webRequest = new HttpRequestMessage(HttpMethod.Get, "http://person-service:8080/" + id);
-            var responseMessage = _client.Send(webRequest);
-            var reader = new StreamReader(responseMessage.Content.ReadAsStream());
-            var content = reader.ReadToEnd();
+            var responseMessage = await _client.SendAsync(webRequest);
+            responseMessage.EnsureSuccessStatusCode();
+            var content = await responseMessage.Content.ReadAsStringAsync();
             _logger.LogInformation("Client: {msg}", content);
             var person = JsonSerializer.Deserialize<Person>(content);
             return new InsuranceDetails(insurance, person);

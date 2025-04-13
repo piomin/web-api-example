@@ -1,49 +1,113 @@
 version: 2.1
 
 orbs:
-  windows: circleci/windows@5.1.0
+  docker: circleci/docker@2.8.2
+
+executors:
+  dotnet:
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:9.0
+    environment:
+      DB_CONNECTION_STRING: "Host=localhost;Database=testdb;Username=test;Password=test123"
 
 jobs:
-  test:
-    description: Setup and run application tests
-    executor:
-      name: windows/default
+  build-and-test:
+    executor: dotnet
     steps:
       - checkout
+      
+      # Restore NuGet packages
       - restore_cache:
           keys:
-            - dotnet-packages-v1-{{ checksum "person-service/person-service.csproj" }}
-            - dotnet-packages-v1-{{ checksum "insurance-service/insurance-service.csproj" }}
+            - nuget-v1-{{ checksum "person-service/person-service.csproj" }}-{{ checksum "person-service.tests/person-service.tests.csproj" }}-{{ checksum "insurance-service/insurance-service.csproj" }}-{{ checksum "insurance-service.tests/insurance-service.tests.csproj" }}
+            - nuget-v1-
+      
+      # Install dependencies
       - run:
-          name: "Install project dependencies"
-          command: dotnet.exe restore
+          name: Install Dependencies
+          command: |
+            dotnet restore person-service/person-service.csproj
+            dotnet restore person-service.tests/person-service.tests.csproj
+            dotnet restore insurance-service/insurance-service.csproj
+            dotnet restore insurance-service.tests/insurance-service.tests.csproj
+      
+      # Cache NuGet packages
       - save_cache:
           paths:
-            - C:\Users\circleci\.nuget\packages
-          key: dotnet-packages-v1-{{ checksum "person-service/person-service.csproj" }}
-      - save_cache:
-          paths:
-            - C:\Users\circleci\.nuget\packages
-          key: dotnet-packages-v1-{{ checksum "insurance-service/insurance-service.csproj" }}
+            - ~/.nuget/packages
+          key: nuget-v1-{{ checksum "person-service/person-service.csproj" }}-{{ checksum "person-service.tests/person-service.tests.csproj" }}-{{ checksum "insurance-service/insurance-service.csproj" }}-{{ checksum "insurance-service.tests/insurance-service.tests.csproj" }}
+      
+      # Build all projects
       - run:
-          name: "Run Application Tests"
-          command: dotnet.exe test -v n --results-directory:test_coverage --collect:"Code Coverage"
+          name: Build
+          command: |
+            dotnet build --configuration Release --no-restore person-service/person-service.csproj
+            dotnet build --configuration Release --no-restore person-service.tests/person-service.tests.csproj
+            dotnet build --configuration Release --no-restore insurance-service/insurance-service.csproj
+            dotnet build --configuration Release --no-restore insurance-service.tests/insurance-service.tests.csproj
+      
+      # Run all tests with coverage
       - run:
-          name: "Print Working Directory"
-          command: pwd
-  build:
-    description: Build application with Release configuration
-    executor:
-      name: windows/default
+          name: Run Tests
+          command: |
+            mkdir -p ./test-results
+            dotnet test person-service.tests/person-service.tests.csproj \
+              --configuration Release \
+              --no-restore \
+              --no-build \
+              --logger "trx;LogFileName=person-service-test-results.trx" \
+              --collect:"XPlat Code Coverage" \
+              --results-directory ./test-results/person-service
+            
+            dotnet test insurance-service.tests/insurance-service.tests.csproj \
+              --configuration Release \
+              --no-restore \
+              --no-build \
+              --logger "trx;LogFileName=insurance-service-test-results.trx" \
+              --collect:"XPlat Code Coverage" \
+              --results-directory ./test-results/insurance-service
+      
+      # Store test results
+      - store_test_results:
+          path: ./test-results
+      
+      # Store coverage artifacts
+      - store_artifacts:
+          path: ./test-results
+          destination: test-results
+
+  publish:
+    executor: dotnet
+    environment:
+      DB_CONNECTION_STRING: "Host=${DB_HOST};Database=${DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}"
     steps:
       - checkout
+      
+      # Build and publish both services
       - run:
-          name: "Build Application according to some given configuration"
-          command: dotnet.exe build --configuration Release
+          name: Publish
+          command: |
+            dotnet publish person-service/person-service.csproj \
+              --configuration Release \
+              --output ./publish/person-service
+            
+            dotnet publish insurance-service/insurance-service.csproj \
+              --configuration Release \
+              --output ./publish/insurance-service
+      
+      # Store publish artifacts
+      - store_artifacts:
+          path: ./publish
+          destination: app
+
 workflows:
-  test_and_build:
+  version: 2
+  build-test-deploy:
     jobs:
-      - test
-      - build:
+      - build-and-test
+      - publish:
           requires:
-            - test
+            - build-and-test
+          filters:
+            branches:
+              only: master
