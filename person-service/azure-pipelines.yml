@@ -12,7 +12,7 @@ variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   sonarProjectKey: 'person-service'
-  sonarOrganization: 'your-sonar-org'
+  sonarOrganization: 'piomin'
   # OpenShift variables
   ocpClusterUrl: '$(OCP_CLUSTER_URL)'
   ocpToken: '$(OCP_TOKEN)'
@@ -33,11 +33,16 @@ stages:
         version: '9.x'
         includePreviewVersions: true
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Restore NuGet packages'
+    - task: NuGetToolInstaller@1
+      inputs:
+        versionSpec: '6.x'
+        checkLatest: true
+
+    - task: NuGetCommand@2
+      displayName: 'NuGet restore'
       inputs:
         command: 'restore'
-        projects: '$(solution)'
+        restoreSolution: '$(solution)'
         feedsToUse: 'select'
 
     - task: SonarCloudPrepare@1
@@ -51,27 +56,28 @@ stages:
           sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/coverage.opencover.xml
           sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Build'
+    - task: VSBuild@1
+      displayName: 'Build solution'
       inputs:
-        command: 'build'
-        projects: '$(solution)'
-        arguments: '--configuration $(buildConfiguration) --no-restore'
+        solution: '$(solution)'
+        configuration: '$(buildConfiguration)'
+        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true'
 
-    - task: DotNetCoreCLI@2
+    - task: VSTest@2
       displayName: 'Run Tests'
       inputs:
-        command: 'test'
-        projects: 'person-service.tests/person-service.tests.csproj'
-        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory $(Agent.TempDirectory) /p:CollectCoverage=true /p:CoverletOutputFormat=opencover'
+        testSelector: 'testAssemblies'
+        testAssemblyVer2: |
+          **\*tests.dll
+          !**\*TestAdapter.dll
+          !**\obj\**
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        codeCoverageEnabled: true
+        testRunTitle: 'Person Service Tests'
+        platform: '$(buildPlatform)'
+        configuration: '$(buildConfiguration)'
         publishTestResults: true
-
-    - task: PublishTestResults@2
-      displayName: 'Publish Test Results'
-      inputs:
-        testRunner: VSTest
-        testResultsFiles: '$(Agent.TempDirectory)/*.trx'
-        failTaskOnFailedTests: true
+        collectDumpOn: 'onAbortOnly'
 
     - task: PublishCodeCoverageResults@1
       displayName: 'Publish Code Coverage'
@@ -88,13 +94,14 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
 
-    - task: DotNetCoreCLI@2
-      displayName: 'Publish'
+    - task: NuGetCommand@2
+      displayName: 'NuGet pack'
       inputs:
-        command: 'publish'
-        publishWebProjects: true
-        arguments: '--configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)'
-        zipAfterPublish: true
+        command: 'pack'
+        packagesToPack: '$(solution)'
+        configuration: '$(buildConfiguration)'
+        packDestination: '$(Build.ArtifactStagingDirectory)'
+        versioningScheme: 'byBuildNumber'
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifacts'
@@ -155,9 +162,26 @@ stages:
                 binary: {}
                 type: Binary
               strategy:
-                dockerStrategy:
-                  dockerfilePath: Dockerfile
-                type: Docker
+                sourceStrategy:
+                  from:
+                    kind: ImageStreamTag
+                    name: 'dotnet:9.0-ubi8'
+                    namespace: openshift
+                  env:
+                  - name: DOTNET_STARTUP_PROJECT
+                    value: person-service/person-service.csproj
+                  - name: DOTNET_CONFIGURATION
+                    value: Release
+                  - name: DOTNET_RESTORE_SOURCES
+                    value: https://api.nuget.org/v3/index.json
+                type: Source
+          - apiVersion: image.openshift.io/v1
+            kind: ImageStream
+            metadata:
+              name: ${IMAGE_STREAM}
+            spec:
+              lookupPolicy:
+                local: true
           parameters:
           - name: IMAGE_STREAM
             value: $(imageStream)
@@ -172,3 +196,5 @@ stages:
           oc start-build $(imageStream) \
             --from-dir=$(Build.ArtifactStagingDirectory) \
             --follow
+
+
