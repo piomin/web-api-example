@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using insurance_service.Controllers;
 using insurance_service.Message;
 using insurance_service.Model;
@@ -88,7 +89,7 @@ namespace insurance_service.tests.Controllers
         }
 
         [Fact]
-        public void FindDetailsById_ReturnsInsuranceWithPersonDetails()
+        public async Task FindDetailsById_ReturnsInsuranceWithPersonDetails()
         {
             // Arrange
             var person = new Person { Id = 3, Name = "Test Person", Age = 30 };
@@ -98,7 +99,7 @@ namespace insurance_service.tests.Controllers
                     .Respond("application/json", personJson);
 
             // Act
-            var result = _controller.FindDetailsById(1);
+            var result = await _controller.FindDetailsById(1);
 
             // Assert
             Assert.NotNull(result);
@@ -111,14 +112,15 @@ namespace insurance_service.tests.Controllers
         }
 
         [Fact]
-        public void FindDetailsById_WithInvalidId_ReturnsNull()
+        public async Task FindDetailsById_WithInvalidId_ThrowsException()
         {
             // Arrange
             _mockHttp.When("http://person-service:8080/999")
                     .Respond(HttpStatusCode.NotFound);
 
             // Act & Assert
-            Assert.Throws<HttpRequestException>(() => _controller.FindDetailsById(999));
+            await Assert.ThrowsAsync<HttpRequestException>(() => 
+                _controller.FindDetailsById(999));
         }
     }
 }
