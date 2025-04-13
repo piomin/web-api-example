@@ -25,44 +25,31 @@ namespace web_api_example.Controllers
         }
 
         [HttpGet]
-        // [Route("/")]
         public List<Person> FindAll()
         {
             _logger.LogInformation("Find All");
-            // return _persons;
-            // using var db = new PersonsDbContext();
             return _context.Persons.ToList();
         }
         
         [HttpGet("{id:int}")]
-        // [Route("/{id:int}")]
         public Person FindById(int id)
         {
             _logger.LogInformation("Find By Id={Id}", id);
-            // return _persons.Find(person => person.Id == id);
-            // using var db = new PersonsDbContext();
             return _context.Persons.Find(id);
         }
 
         [HttpGet("age-greater-than/{age:int}")]
-        // [Route("/age-greater-than/{age:int}")]
         public List<Person> FindByAgeGreaterThan(int age) {
             _logger.LogInformation("Find By Age>{age}", age);
-            // using var db = new PersonsDbContext();
             return _context.Persons.Where(person => person.Age > age).ToList();
-            // return _persons.FindAll(person => person.Age > age);
         }
 
         [HttpPost]
-        // [Route("/")]
         public Person AddNew([FromBody] Person person)
         {
             _logger.LogInformation("Add New Name={Name}", person.Name);
-            // using var db = new PersonsDbContext();
             var addedPerson = _context.Persons.Add(person);
             _context.SaveChanges();
-            // person.Id = _persons.Count + 1;
-            // _persons.Add(person);
             return person;
         }
     }
