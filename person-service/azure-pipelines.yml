@@ -74,28 +74,18 @@ stages:
           sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/coverage.opencover.xml
           sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
 
-    - task: VSBuild@1
-      displayName: 'Build solution'
+    - task: NuGetCommand@2
+      displayName: 'NuGet build'
       inputs:
-        solution: '$(solution)'
-        configuration: '$(buildConfiguration)'
-        msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true'
+        command: 'custom'
+        arguments: 'build $(solution) --configuration $(buildConfiguration)'
 
-    - task: VSTest@2
-      displayName: 'Run Tests'
+    - task: NuGetCommand@2
+      displayName: 'NuGet test'
       inputs:
-        testSelector: 'testAssemblies'
-        testAssemblyVer2: |
-          **\*tests.dll
-          !**\*TestAdapter.dll
-          !**\obj\**
-        searchFolder: '$(System.DefaultWorkingDirectory)'
-        codeCoverageEnabled: true
-        testRunTitle: 'Person Service Tests'
-        platform: '$(buildPlatform)'
-        configuration: '$(buildConfiguration)'
+        command: 'custom'
+        arguments: 'test **/*tests/*.csproj --configuration $(buildConfiguration) --collect:"XPlat Code Coverage" --logger trx -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover'
         publishTestResults: true
-        collectDumpOn: 'onAbortOnly'
 
     - task: PublishCodeCoverageResults@1
       displayName: 'Publish Code Coverage'
