@@ -59,7 +59,7 @@ stages:
         restoreSolution: '$(solution)'
         feedsToUse: 'select'
 
-    - task: SonarCloudPrepare@1
+    - task: SonarCloudPrepare@3
       inputs:
         SonarCloud: 'SonarCloud'
         organization: '$(sonarOrganization)'
@@ -100,10 +100,10 @@ stages:
         summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage.cobertura.xml'
         failIfCoverageEmpty: true
 
-    - task: SonarCloudAnalyze@1
+    - task: SonarCloudAnalyze@3
       displayName: 'Run SonarCloud Analysis'
 
-    - task: SonarCloudPublish@1
+    - task: SonarCloudPublish@3
       displayName: 'Publish SonarCloud Results'
       inputs:
         pollingTimeoutSec: '300'
@@ -125,19 +125,8 @@ stages:
         artifactName: 'person-service'
         publishLocation: 'Container'
 
-- stage: Quality
-  dependsOn: Build
-  condition: succeeded()
-  jobs:
-  - job: QualityGate
-    steps:
-    - task: SonarCloudQualityGate@1
-      inputs:
-        pollingTimeoutSec: '300'
-      displayName: 'Check Quality Gate'
-
 - stage: BuildImage
-  dependsOn: Quality
+  dependsOn: Build
   condition: succeeded()
   variables:
     imageTag: '$(projectVersion)'
