@@ -144,19 +144,22 @@ stages:
   jobs:
   - job: BuildOnOpenShift
     steps:
-    - task: oc-cmd@2
+    - task: oc-cmd@3
       displayName: 'Login to OpenShift'
       inputs:
         cmd: 'login'
-        serverUrl: '$(ocpClusterUrl)'
-        token: '$(ocpToken)'
-        
-    - task: oc-cmd@2
+#        serverUrl: '$(ocpClusterUrl)'
+#        token: '$(ocpToken)'
+        connectionType: 'OpenShift Connection Service'
+        openshiftService: 'piomin-ocp'
+        version: '4.17'
+
+    - task: oc-cmd@3
       displayName: 'Switch to Project'
       inputs:
         cmd: 'project $(ocpNamespace)'
 
-    - task: oc-cmd@2
+    - task: oc-cmd@3
       displayName: 'Create/Update BuildConfig'
       inputs:
         cmd: |
@@ -206,7 +209,7 @@ stages:
             value: $(imageTag)
           EOF
 
-    - task: oc-cmd@2
+    - task: oc-cmd@3
       displayName: 'Start Binary Build'
       inputs:
         cmd: |
