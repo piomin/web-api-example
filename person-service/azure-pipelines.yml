@@ -6,6 +6,13 @@ trigger:
     include:
     - person-service/*
 
+resources:
+  repositories:
+    - repository: gitops
+      type: git
+      name: pminkows/gitops
+      ref: main
+
 variables:
   solution: 'person-service/person-service.csproj'
   buildConfiguration: 'Release'
@@ -29,9 +36,7 @@ stages:
   - job: BuildAndTest
     steps:
     - checkout: self
-    - checkout: git://gitops
-      persistCredentials: true
-      fetchDepth: 0
+      path: s/app
 
     - task: UseDotNet@2
       inputs:
@@ -59,6 +64,7 @@ stages:
           $version = $xml.Project.PropertyGroup.Version
           Write-Host "##vso[task.setvariable variable=projectVersion]$version"
           Write-Host "Project version: $version"
+      workingDirectory: $(Pipeline.Workspace)/s/app
 
     - task: NuGetCommand@2
       displayName: 'NuGet restore'
@@ -66,6 +72,7 @@ stages:
         command: 'restore'
         restoreSolution: '$(solution)'
         feedsToUse: 'select'
+      workingDirectory: $(Pipeline.Workspace)/s/app
 
     - task: SonarCloudPrepare@3
       inputs:
@@ -77,6 +84,7 @@ stages:
         extraProperties: |
           sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/coverage.opencover.xml
           sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
+      workingDirectory: $(Pipeline.Workspace)/s/app
 
     - task: VSBuild@1
       displayName: 'Build solution'
@@ -84,6 +92,7 @@ stages:
         solution: '$(solution)'
         configuration: '$(buildConfiguration)'
         msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true'
+      workingDirectory: $(Pipeline.Workspace)/s/app
 
     - task: VSTest@2
       displayName: 'Run Tests'
@@ -93,7 +102,7 @@ stages:
           **\*tests.dll
           !**\*TestAdapter.dll
           !**\obj\**
-        searchFolder: '$(System.DefaultWorkingDirectory)'
+        searchFolder: '$(Pipeline.Workspace)/s/app'
         codeCoverageEnabled: true
         testRunTitle: 'Person Service Tests'
         platform: '$(buildPlatform)'
@@ -105,7 +114,7 @@ stages:
       displayName: 'Publish Code Coverage'
       inputs:
         codeCoverageTool: 'Cobertura'
-        summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage.cobertura.xml'
+        summaryFileLocation: '$(Pipeline.Workspace)/s/app/**/coverage.cobertura.xml'
         failIfCoverageEmpty: true
 
     - task: SonarCloudAnalyze@3
@@ -125,6 +134,7 @@ stages:
         packDestination: '$(Build.ArtifactStagingDirectory)'
         versioningScheme: 'byEnvVar'
         versionEnvVar: 'projectVersion'
+      workingDirectory: $(Pipeline.Workspace)/s/app
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifacts'
@@ -134,19 +144,22 @@ stages:
         publishLocation: 'Container'
 
 - stage: BuildImage
-  dependsOn: Build
+  dependsOn: BUILD
   condition: succeeded()
   variables:
     imageTag: '$(projectVersion)'
   jobs:
   - job: BuildOnOpenShift
     steps:
+    - checkout: self
+      path: s/app
+
     - task: oc-cmd@3
       displayName: 'Login to OpenShift'
       inputs:
         cmd: 'login'
-#        serverUrl: '$(ocpClusterUrl)'
-#        token: '$(ocpToken)'
+        serverUrl: '$(ocpClusterUrl)'
+        token: '$(ocpToken)'
         connectionType: 'OpenShift Connection Service'
         openshiftService: 'piomin-ocp'
         version: '4.17'
@@ -222,19 +235,24 @@ stages:
   jobs:
   - job: CommitNewTag
     steps:
-      - task: CmdLine@2
-        inputs:
-          script: |
-            git config --global user.email "piotr.minkowski@gmail.com"
-            git config --global user.name "Piotr Minkowski"
-            cd gitops
-            git checkout main
-            yq e '.image.tag = "$(imageTag)"' -i apps/person-service/test/values.yaml
-            cat apps/person-service/test/values.yaml
-            git add apps/person-service/test/values.yaml
-            git commit -m "$(imageTag)"
-            git remote -v
-            git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
+    - checkout: gitops
+      path: s/gitops
+      persistCredentials: true
+      fetchDepth: 0
+
+    - task: CmdLine@2
+      inputs:
+        script: |
+          git config --global user.email "piotr.minkowski@gmail.com"
+          git config --global user.name "Piotr Minkowski"
+          cd s/gitops
+          git checkout main
+          yq e '.image.tag = "$(imageTag)"' -i apps/person-service/test/values.yaml
+          cat apps/person-service/test/values.yaml
+          git add apps/person-service/test/values.yaml
+          git commit -m "$(imageTag)"
+          git remote -v
+          git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
         displayName: List catalog
         env:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
@@ -257,7 +275,7 @@ stages:
                   script: |
                     git config --global user.email "piotr.minkowski@gmail.com"
                     git config --global user.name "Piotr Minkowski"
-                    cd gitops
+                    cd s/gitops
                     git checkout main
                     yq e '.image.tag = "$(imageTag)"' -i apps/person-service/prod/values.yaml
                     cat apps/person-service/prod/values.yaml
