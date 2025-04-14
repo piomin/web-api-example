@@ -252,21 +252,19 @@ stages:
         runOnce:
           deploy:
             steps:
-              - job: CommitNewTag
-                steps:
-                  - task: CmdLine@2
-                    inputs:
-                      script: |
-                        git config --global user.email "piotr.minkowski@gmail.com"
-                        git config --global user.name "Piotr Minkowski"
-                        cd gitops
-                        git checkout main
-                        yq e '.image.tag = "$(imageTag)"' -i apps/person-service/prod/values.yaml
-                        cat apps/person-service/prod/values.yaml
-                        git add apps/person-service/prod/values.yaml
-                        git commit -m "$(imageTag)"
-                        git remote -v
-                        git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
-                    displayName: List catalog
-                    env:
-                      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+              - task: CmdLine@2
+                inputs:
+                  script: |
+                    git config --global user.email "piotr.minkowski@gmail.com"
+                    git config --global user.name "Piotr Minkowski"
+                    cd gitops
+                    git checkout main
+                    yq e '.image.tag = "$(imageTag)"' -i apps/person-service/prod/values.yaml
+                    cat apps/person-service/prod/values.yaml
+                    git add apps/person-service/prod/values.yaml
+                    git commit -m "$(imageTag)"
+                    git remote -v
+                    git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
+                displayName: List catalog
+                env:
+                  SYSTEM_ACCESSTOKEN: $(System.AccessToken)
