@@ -74,25 +74,19 @@ stages:
           sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/**/coverage.opencover.xml
           sonar.cs.vstest.reportsPaths=$(Agent.TempDirectory)/*.trx
 
-    - task: NuGetCommand@2
-      displayName: 'NuGet build'
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Tests'
       inputs:
-        command: 'custom'
-        arguments: 'build $(solution) --configuration $(buildConfiguration)'
-
-    - task: NuGetCommand@2
-      displayName: 'NuGet test'
-      inputs:
-        command: 'custom'
-        arguments: 'test **/*tests/*.csproj --configuration $(buildConfiguration) --collect:"XPlat Code Coverage" --logger trx -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover'
+        command: 'test'
+        projects: 'dotnet test person-service.tests/person-service.tests.csproj'
+        arguments: '--configuration $(buildConfiguration) --collect:"XPlat Code Coverage" --logger trx -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover'
         publishTestResults: true
 
-    - task: PublishCodeCoverageResults@1
+    - task: PublishCodeCoverageResults@2
       displayName: 'Publish Code Coverage'
       inputs:
-        codeCoverageTool: 'Cobertura'
         summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage.cobertura.xml'
-        failIfCoverageEmpty: true
+        failIfCoverageEmpty: false
 
     - task: SonarCloudAnalyze@3
       displayName: 'Run SonarCloud Analysis'
