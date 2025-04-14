@@ -32,6 +32,7 @@ stages:
     - checkout: git://gitops
       persistCredentials: true
       fetchDepth: 0
+
     - task: UseDotNet@2
       inputs:
         version: '9.x'
@@ -45,8 +46,9 @@ stages:
     - task: CmdLine@2
       inputs:
         script: |
-          pwd
+          cd web-api-example
           ls -la
+          pwd
 
     - task: PowerShell@2
       displayName: 'Get Project Version'
