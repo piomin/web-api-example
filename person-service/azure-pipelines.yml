@@ -67,7 +67,7 @@ stages:
       inputs:
         SonarCloud: 'SonarCloud'
         organization: '$(sonarOrganization)'
-        scannerMode: 'MSBuild'
+        scannerMode: 'dotnet'
         projectKey: '$(sonarProjectKey)'
         projectName: 'Person Service'
         extraProperties: |
