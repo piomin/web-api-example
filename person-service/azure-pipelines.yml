@@ -42,6 +42,12 @@ stages:
         versionSpec: '6.x'
         checkLatest: true
 
+    - task: CmdLine@2
+      inputs:
+        script: |
+          pwd
+          ls -la
+
     - task: PowerShell@2
       displayName: 'Get Project Version'
       inputs:
