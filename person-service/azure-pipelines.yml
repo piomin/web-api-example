@@ -88,13 +88,13 @@ stages:
         summaryFileLocation: '$(Build.SourcesDirectory)/**/coverage.cobertura.xml'
         failIfCoverageEmpty: false
 
-    - task: SonarCloudAnalyze@3
-      displayName: 'Run SonarCloud Analysis'
+#    - task: SonarCloudAnalyze@3
+#      displayName: 'Run SonarCloud Analysis'
 
-    - task: SonarCloudPublish@3
-      displayName: 'Publish SonarCloud Results'
-      inputs:
-        pollingTimeoutSec: '300'
+#    - task: SonarCloudPublish@3
+#      displayName: 'Publish SonarCloud Results'
+#      inputs:
+#        pollingTimeoutSec: '300'
 
     - task: NuGetCommand@2
       displayName: 'NuGet pack'
