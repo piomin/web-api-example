@@ -3,6 +3,7 @@
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
         <RootNamespace>person-service</RootNamespace>
+        <Version>1.0.0</Version>
     </PropertyGroup>
 
     <ItemGroup>
