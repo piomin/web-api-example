@@ -18,16 +18,20 @@ variables:
   ocpToken: '$(OCP_TOKEN)'
   ocpNamespace: '$(OCP_NAMESPACE)'
   imageStream: 'person-service'
-  imageTag: '$(Build.BuildId)'
 
 pool:
-  vmImage: 'ubuntu-latest'
+  name: Azure Pipelines
+#  vmImage: 'ubuntu-latest'
 
 stages:
 - stage: Build
   jobs:
   - job: BuildAndTest
     steps:
+    - checkout: self
+    - checkout: git://gitops
+      persistCredentials: true
+      fetchDepth: 0
     - task: UseDotNet@2
       inputs:
         version: '9.x'
@@ -37,6 +41,16 @@ stages:
       inputs:
         versionSpec: '6.x'
         checkLatest: true
+
+    - task: PowerShell@2
+      displayName: 'Get Project Version'
+      inputs:
+        targetType: 'inline'
+        script: |
+          $xml = [Xml] (Get-Content $(solution))
+          $version = $xml.Project.PropertyGroup.Version
+          Write-Host "##vso[task.setvariable variable=projectVersion]$version"
+          Write-Host "Project version: $version"
 
     - task: NuGetCommand@2
       displayName: 'NuGet restore'
@@ -101,7 +115,8 @@ stages:
         packagesToPack: '$(solution)'
         configuration: '$(buildConfiguration)'
         packDestination: '$(Build.ArtifactStagingDirectory)'
-        versioningScheme: 'byBuildNumber'
+        versioningScheme: 'byEnvVar'
+        versionEnvVar: 'projectVersion'
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifacts'
@@ -121,9 +136,11 @@ stages:
         pollingTimeoutSec: '300'
       displayName: 'Check Quality Gate'
 
-- stage: BuildContainer
+- stage: BuildImage
   dependsOn: Quality
   condition: succeeded()
+  variables:
+    imageTag: '$(projectVersion)'
   jobs:
   - job: BuildOnOpenShift
     steps:
@@ -197,4 +214,59 @@ stages:
             --from-dir=$(Build.ArtifactStagingDirectory) \
             --follow
 
+- stage: DeployOnTest
+  dependsOn: BuildImage
+  condition: succeeded()
+  variables:
+    imageTag: '$(projectVersion)'
+  jobs:
+  - job: CommitNewTag
+    steps:
+      - task: CmdLine@2
+        inputs:
+          script: |
+            git config --global user.email "piotr.minkowski@gmail.com"
+            git config --global user.name "Piotr Minkowski"
+            cd gitops
+            git checkout main
+            yq e '.image.tag = "$(imageTag)"' -i apps/person-service/test/values.yaml
+            cat apps/person-service/test/values.yaml
+            git add apps/person-service/test/values.yaml
+            git commit -m "$(imageTag)"
+            git remote -v
+            git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
+        displayName: List catalog
+        env:
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
+- stage: DeployOnProd
+  dependsOn: DeployOnTest
+  condition: succeeded()
+  variables:
+    imageTag: '$(projectVersion)'
+  jobs:
+    - deployment: Deployment_Staging
+      environment:
+        name: staging
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - job: CommitNewTag
+                steps:
+                  - task: CmdLine@2
+                    inputs:
+                      script: |
+                        git config --global user.email "piotr.minkowski@gmail.com"
+                        git config --global user.name "Piotr Minkowski"
+                        cd gitops
+                        git checkout main
+                        yq e '.image.tag = "$(imageTag)"' -i apps/person-service/prod/values.yaml
+                        cat apps/person-service/prod/values.yaml
+                        git add apps/person-service/prod/values.yaml
+                        git commit -m "$(imageTag)"
+                        git remote -v
+                        git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
+                    displayName: List catalog
+                    env:
+                      SYSTEM_ACCESSTOKEN: $(System.AccessToken)
