@@ -143,7 +143,7 @@ stages:
       - task: CmdLine@2
         inputs:
           script: |
-            oc login https://172.30.0.1:443 -u opentlc-mgr -p $(OCP_PASSWORD) --insecure-skip-tls-verify=true
+            oc login $(OCP_CLUSTER) -u opentlc-mgr -p $(OCP_PASSWORD) --insecure-skip-tls-verify=true
             oc project demo-ci
         displayName: Login to OpenShift
 
