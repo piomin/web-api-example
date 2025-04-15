@@ -129,8 +129,9 @@ stages:
   jobs:
   - job: BuildOnOpenShift
     steps:
-      steps:
-      - script: |
+
+      - task: CmdLine@2
+        script: |
           echo "Installing OpenShift CLI (oc)..."
           curl -LO "https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz"
           tar -xzf oc.tar.gz
