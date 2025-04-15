@@ -128,6 +128,11 @@ stages:
   jobs:
   - job: BuildOnOpenShift
     steps:
+    - task: oc-setup@3
+      inputs:
+        connectionType: 'OpenShift Connection Service'
+        openshiftService: 'piomin-ocp'
+        version: '4.17'
     - task: oc-cmd@3
       displayName: 'Login to OpenShift'
       inputs:
