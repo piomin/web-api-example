@@ -100,11 +100,11 @@ stages:
 #        pollingTimeoutSec: '300'
 
     - task: DotNetCoreCLI@2
-      displayName: 'Build'
+      displayName: 'Build and Publish'
       inputs:
-        command: 'build'
+        command: 'publish'
         projects: '$(solution)'
-        arguments: '--configuration $(buildConfiguration)'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
         versioningScheme: 'byEnvVar'
         versionEnvVar: 'projectVersion'
 
