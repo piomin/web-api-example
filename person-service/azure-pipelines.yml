@@ -136,6 +136,8 @@ stages:
   jobs:
   - job: BuildOnOpenShift
     steps:
+      - download: current
+        artifact: person-service
 
       - task: CmdLine@2
         inputs:
