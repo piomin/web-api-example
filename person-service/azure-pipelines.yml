@@ -128,7 +128,7 @@ stages:
   condition: succeeded()
   variables:
     imageTag: '$(appVersion)'
-    appVersion: $[ dependencies.Build.outputs['SetVersion.appVersion'] ]
+    appVersion: $[ dependencies.Build.outputs['BuildAndTest.SetVersion.appVersion'] ]
   jobs:
   - job: BuildOnOpenShift
     steps:
