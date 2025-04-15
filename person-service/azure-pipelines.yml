@@ -152,28 +152,37 @@ stages:
           script: |
             oc login $(OCP_CLUSTER) -u opentlc-mgr -p $(OCP_PASSWORD) --insecure-skip-tls-verify=true
             oc project demo-ci
-            echo $(Build.ArtifactStagingDirectory)
+            ls $(Pipeline.Workspace)/person-service
         displayName: Login to OpenShift
 
       - task: CmdLine@2
         inputs:
-          script: 'oc process person-service-build -o yaml -p IMAGE_TAG=$(appVersion) -p IMAGE_STREAM=$(imageStream) | oc apply -f -'
+          script: |
+            oc process person-service-build -o yaml -p IMAGE_TAG=$(appVersion) -p IMAGE_STREAM=$(imageStream) | oc apply -f -
+            oc process s2i-build-tmpl -o yaml -p IMAGE_TAG=$(appVersion) | oc apply -f -
         displayName: Create build
 
       - task: CmdLine@2
-        displayName: 'Start Image Build'
+        displayName: Start Image Build
         inputs:
           script: |
             oc start-build $(imageStream) \
-              --from-dir=$(Build.ArtifactStagingDirectory)/person-service \
-              --follow -w
+              --from-dir=$(Pipeline.Workspace)/person-service \
+              --follow
+
+      - task: CmdLine@2
+        displayName: Start S2I Build
+        inputs:
+          script: |
+            oc start-build $(imageStream)-s2i --follow -w
 
 - stage: DeployOnTest
-  dependsOn: BuildImage
+  dependsOn:
+    - Build
+    - BuildImage
   condition: succeeded()
   variables:
-    imageTag: '$(projectVersion)'
-    appVersion: $[ dependencies.Build.outputs['BuildAndTest.SetVersion.appVersion'] ]
+    appVersion: $[ stageDependencies.Build.BuildAndTest.outputs['SetVersion.appVersion'] ]
   jobs:
   - job: CommitNewTag
     steps:
@@ -199,11 +208,12 @@ stages:
           SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
 - stage: DeployOnProd
-  dependsOn: DeployOnTest
+  dependsOn:
+    - Build
+    - DeployOnTest
   condition: succeeded()
   variables:
-    imageTag: '$(projectVersion)'
-    appVersion: $[ dependencies.Build.outputs['SetVersion.appVersion'] ]
+    appVersion: $[ stageDependencies.Build.BuildAndTest.outputs['SetVersion.appVersion'] ]
   jobs:
     - deployment: Deployment_Staging
       environment:
