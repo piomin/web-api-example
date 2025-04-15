@@ -14,13 +14,14 @@ variables:
   sonarProjectKey: 'person-service'
   sonarOrganization: 'piomin'
   # OpenShift variables
-  ocpClusterUrl: '$(OCP_CLUSTER_URL)'
-  ocpToken: '$(OCP_TOKEN)'
-  ocpNamespace: '$(OCP_NAMESPACE)'
+#  ocpClusterUrl: '$(OCP_CLUSTER_URL)'
+#  ocpToken: '$(OCP_TOKEN)'
+#  ocpNamespace: '$(OCP_NAMESPACE)'
   imageStream: 'person-service'
 
 pool:
-  name: Azure Pipelines
+#  name: Azure Pipelines
+  name: Default
 #  vmImage: 'ubuntu-latest'
 
 stages:
@@ -128,83 +129,25 @@ stages:
   jobs:
   - job: BuildOnOpenShift
     steps:
-    - task: oc-setup@3
-      inputs:
-        connectionType: 'OpenShift Connection Service'
-        openshiftService: 'piomin-ocp'
-        version: '4.17'
-    - task: oc-cmd@3
-      displayName: 'Login to OpenShift'
-      inputs:
-        cmd: 'login'
-#        serverUrl: '$(ocpClusterUrl)'
-#        token: '$(ocpToken)'
-        connectionType: 'OpenShift Connection Service'
-        openshiftService: 'piomin-ocp'
-        version: '4.17'
+      - task: CmdLine@2
+        inputs:
+          script: |
+            oc login https://172.30.0.1:443 -u opentlc-mgr -p $(OCP_PASSWORD) --insecure-skip-tls-verify=true
+            oc project demo-ci
+        displayName: Login to OpenShift
 
-    - task: oc-cmd@3
-      displayName: 'Switch to Project'
-      inputs:
-        cmd: 'project $(ocpNamespace)'
+      - task: CmdLine@2
+        inputs:
+          script: 'oc process person-service-build -o yaml -p IMAGE_TAG=$(imageTag) -p IMAGE_STREAM=$(imageStream) | oc apply -f -'
+        displayName: Create build
 
-    - task: oc-cmd@3
-      displayName: 'Create/Update BuildConfig'
-      inputs:
-        cmd: |
-          oc process -f - | oc apply -f - <<EOF
-          apiVersion: template.openshift.io/v1
-          kind: Template
-          metadata:
-            name: person-service-build
-          objects:
-          - apiVersion: build.openshift.io/v1
-            kind: BuildConfig
-            metadata:
-              name: person-service
-            spec:
-              output:
-                to:
-                  kind: ImageStreamTag
-                  name: ${IMAGE_STREAM}:${IMAGE_TAG}
-              source:
-                binary: {}
-                type: Binary
-              strategy:
-                sourceStrategy:
-                  from:
-                    kind: ImageStreamTag
-                    name: 'dotnet:9.0-ubi8'
-                    namespace: openshift
-                  env:
-                  - name: DOTNET_STARTUP_PROJECT
-                    value: person-service/person-service.csproj
-                  - name: DOTNET_CONFIGURATION
-                    value: Release
-                  - name: DOTNET_RESTORE_SOURCES
-                    value: https://api.nuget.org/v3/index.json
-                type: Source
-          - apiVersion: image.openshift.io/v1
-            kind: ImageStream
-            metadata:
-              name: ${IMAGE_STREAM}
-            spec:
-              lookupPolicy:
-                local: true
-          parameters:
-          - name: IMAGE_STREAM
-            value: $(imageStream)
-          - name: IMAGE_TAG
-            value: $(imageTag)
-          EOF
-
-    - task: oc-cmd@3
-      displayName: 'Start Binary Build'
-      inputs:
-        cmd: |
-          oc start-build $(imageStream) \
-            --from-dir=$(Build.ArtifactStagingDirectory) \
-            --follow
+      - task: CmdLine@2
+        displayName: 'Start Image Build'
+        inputs:
+          script: |
+            oc start-build $(imageStream) \
+              --from-dir=$(Build.ArtifactStagingDirectory) \
+              --follow
 
 - stage: DeployOnTest
   dependsOn: BuildImage
