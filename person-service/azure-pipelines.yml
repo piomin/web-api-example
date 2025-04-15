@@ -41,28 +41,29 @@ stages:
         versionSpec: '6.x'
         checkLatest: true
 
-    - task: CmdLine@2
-      inputs:
-        script: |
-          ls -la
-          pwd
+#    - task: CmdLine@2
+#      inputs:
+#        script: |
+#          ls -la
+#          pwd
 
     - task: PowerShell@2
       displayName: 'Get Project Version'
+      name: SetVersion
       inputs:
         targetType: 'inline'
         script: |
           $xml = [Xml] (Get-Content $(solution))
           $version = $xml.Project.PropertyGroup.Version
-          Write-Host "##vso[task.setvariable variable=projectVersion]$version"
+          Write-Host "##vso[task.setvariable variable=appVersion;isOutput=true]$version"
           Write-Host "Project version: $version"
 
-    - task: NuGetCommand@2
-      displayName: 'NuGet restore'
-      inputs:
-        command: 'restore'
-        restoreSolution: '$(solution)'
-        feedsToUse: 'select'
+#    - task: NuGetCommand@2
+#      displayName: 'NuGet restore'
+#      inputs:
+#        command: 'restore'
+#        restoreSolution: '$(solution)'
+#        feedsToUse: 'select'
 
     - task: SonarCloudPrepare@3
       inputs:
@@ -111,7 +112,7 @@ stages:
         packagesToPack: '$(solution)'
         packDirectory: '$(Build.ArtifactStagingDirectory)'
         versioningScheme: 'byEnvVar'
-        versionEnvVar: 'projectVersion'
+        versionEnvVar: 'appVersion'
         configuration: '$(buildConfiguration)'
 
     - task: PublishBuildArtifacts@1
@@ -125,7 +126,8 @@ stages:
   dependsOn: Build
   condition: succeeded()
   variables:
-    imageTag: '$(projectVersion)'
+    imageTag: '$(appVersion)'
+    appVersion: $[ dependencies.Build.outputs['SetVersion.appVersion'] ]
   jobs:
   - job: BuildOnOpenShift
     steps:
@@ -149,7 +151,7 @@ stages:
 
       - task: CmdLine@2
         inputs:
-          script: 'oc process person-service-build -o yaml -p IMAGE_TAG=$(imageTag) -p IMAGE_STREAM=$(imageStream) | oc apply -f -'
+          script: 'oc process person-service-build -o yaml -p IMAGE_TAG=$(appVersion) -p IMAGE_STREAM=$(imageStream) | oc apply -f -'
         displayName: Create build
 
       - task: CmdLine@2
@@ -158,13 +160,14 @@ stages:
           script: |
             oc start-build $(imageStream) \
               --from-dir=$(Build.ArtifactStagingDirectory) \
-              --follow
+              --follow -w
 
 - stage: DeployOnTest
   dependsOn: BuildImage
   condition: succeeded()
   variables:
     imageTag: '$(projectVersion)'
+    appVersion: $[ dependencies.Build.outputs['SetVersion.appVersion'] ]
   jobs:
   - job: CommitNewTag
     steps:
@@ -174,14 +177,15 @@ stages:
       - task: CmdLine@2
         inputs:
           script: |
+            pwd
+            ls -la
             git config --global user.email "piotr.minkowski@gmail.com"
             git config --global user.name "Piotr Minkowski"
-            cd gitops
             git checkout main
-            yq e '.image.tag = "$(imageTag)"' -i apps/person-service/test/values.yaml
+            yq e '.image.tag = "$(appVersion)"' -i apps/person-service/test/values.yaml
             cat apps/person-service/test/values.yaml
             git add apps/person-service/test/values.yaml
-            git commit -m "$(imageTag)"
+            git commit -m "$(appVersion)"
             git remote -v
             git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
         displayName: List catalog
@@ -193,6 +197,7 @@ stages:
   condition: succeeded()
   variables:
     imageTag: '$(projectVersion)'
+    appVersion: $[ dependencies.Build.outputs['SetVersion.appVersion'] ]
   jobs:
     - deployment: Deployment_Staging
       environment:
@@ -201,17 +206,19 @@ stages:
         runOnce:
           deploy:
             steps:
+              - checkout: git://gitops
+                persistCredentials: true
+                fetchDepth: 0
               - task: CmdLine@2
                 inputs:
                   script: |
                     git config --global user.email "piotr.minkowski@gmail.com"
                     git config --global user.name "Piotr Minkowski"
-                    cd gitops
                     git checkout main
-                    yq e '.image.tag = "$(imageTag)"' -i apps/person-service/prod/values.yaml
+                    yq e '.image.tag = "$(appVersion)"' -i apps/person-service/prod/values.yaml
                     cat apps/person-service/prod/values.yaml
                     git add apps/person-service/prod/values.yaml
-                    git commit -m "$(imageTag)"
+                    git commit -m "$(appVersion)"
                     git remote -v
                     git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
                 displayName: List catalog
