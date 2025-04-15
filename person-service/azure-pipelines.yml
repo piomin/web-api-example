@@ -20,8 +20,8 @@ variables:
   imageStream: 'person-service'
 
 pool:
-#  name: Azure Pipelines
-  name: Default
+  name: Azure Pipelines
+#  name: Default
 #  vmImage: 'ubuntu-latest'
 
 stages:
@@ -129,6 +129,15 @@ stages:
   jobs:
   - job: BuildOnOpenShift
     steps:
+      steps:
+      - script: |
+          echo "Installing OpenShift CLI (oc)..."
+          curl -LO "https://mirror.openshift.com/pub/openshift-v4/clients/oc/latest/linux/oc.tar.gz"
+          tar -xzf oc.tar.gz
+          sudo mv oc /usr/local/bin/
+          oc version
+        displayName: 'Install OpenShift CLI'
+
       - task: CmdLine@2
         inputs:
           script: |
