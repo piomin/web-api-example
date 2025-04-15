@@ -58,12 +58,12 @@ stages:
           Write-Host "##vso[task.setvariable variable=appVersion;isOutput=true]$version"
           Write-Host "Project version: $version"
 
-#    - task: NuGetCommand@2
-#      displayName: 'NuGet restore'
-#      inputs:
-#        command: 'restore'
-#        restoreSolution: '$(solution)'
-#        feedsToUse: 'select'
+    - task: NuGetCommand@2
+      displayName: 'NuGet restore'
+      inputs:
+        command: 'restore'
+        restoreSolution: '$(solution)'
+        feedsToUse: 'select'
 
     - task: SonarCloudPrepare@3
       inputs:
