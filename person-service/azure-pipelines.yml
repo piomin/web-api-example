@@ -2,6 +2,7 @@ trigger:
   branches:
     include:
     - master
+    - test
   paths:
     include:
     - person-service/*
@@ -176,7 +177,7 @@ stages:
         displayName: Start S2I Build
         inputs:
           script: |
-            oc start-build $(imageStream)-s2i --follow -w
+            oc start-build $(imageStream)-s2i --follow -w   
 
 - stage: DeployOnTest
   dependsOn:
