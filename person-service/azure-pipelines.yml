@@ -103,10 +103,12 @@ stages:
       displayName: 'Build and Publish'
       inputs:
         command: 'publish'
+        publishWebProjects: false
         projects: '$(solution)'
         arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
         versioningScheme: 'byEnvVar'
         versionEnvVar: 'projectVersion'
+        zipAfterPublish: false
 
 #    - task: DotNetCoreCLI@2
 #      displayName: 'Pack'
