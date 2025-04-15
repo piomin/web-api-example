@@ -152,6 +152,7 @@ stages:
           script: |
             oc login $(OCP_CLUSTER) -u opentlc-mgr -p $(OCP_PASSWORD) --insecure-skip-tls-verify=true
             oc project demo-ci
+            echo $(Build.ArtifactStagingDirectory)
         displayName: Login to OpenShift
 
       - task: CmdLine@2
@@ -164,7 +165,7 @@ stages:
         inputs:
           script: |
             oc start-build $(imageStream) \
-              --from-dir=$(Build.ArtifactStagingDirectory) \
+              --from-dir=$(Build.ArtifactStagingDirectory)/person-service \
               --follow -w
 
 - stage: DeployOnTest
