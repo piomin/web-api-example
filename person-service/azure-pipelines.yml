@@ -111,9 +111,9 @@ stages:
         command: 'pack'
         packagesToPack: '$(solution)'
         packDirectory: '$(Build.ArtifactStagingDirectory)'
-        versioningScheme: 'byEnvVar'
-        versionEnvVar: 'appVersion'
-        configuration: '$(buildConfiguration)'
+        versioningScheme: 'off'
+#        versionEnvVar: 'appVersion'
+        configuration: '$(buildConfiguration) /p:PackageVersion=$(appVersion)'
 
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifacts'
