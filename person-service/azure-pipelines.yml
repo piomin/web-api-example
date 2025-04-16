@@ -195,15 +195,13 @@ stages:
           script: |
             # Required env vars
             export ROX_API_TOKEN=$(ACS_API_TOKEN)
-            export ROX_CENTRAL_ENDPOINT=$(ACS_CENTRAL_ENDPOINT)
+            export ROX_ENDPOINT=$(ACS_CENTRAL_ENDPOINT)
             IMAGE=quay.io/pminkows/$(imageStream):$(appVersion)
       
             echo "Scanning image: $IMAGE"
             roxctl image scan \
               --image "$IMAGE" \
-              --endpoint "$ROX_CENTRAL_ENDPOINT" \
               --insecure-skip-tls-verify \
-              --token "$ROX_API_TOKEN"
 
 - stage: DeployOnTest
   dependsOn:
