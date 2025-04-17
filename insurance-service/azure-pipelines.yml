@@ -53,7 +53,7 @@ stages:
       displayName: 'Run Tests'
       inputs:
         command: 'test'
-        projects: 'dotnet test insurance-service.tests/insurance-service.tests.csproj'
+        projects: '$(solution)'
         arguments: '--configuration $(buildConfiguration) --collect:"XPlat Code Coverage" --logger trx -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover'
         publishTestResults: true
 
