@@ -1,17 +1,16 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using insurance_service.Controllers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using insurance_service.Data;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Prometheus;
+using System;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace insurance_service
 {
@@ -27,9 +26,9 @@ namespace insurance_service
         public void ConfigureServices(IServiceCollection services)
         {
             // Database with resilience
-            services.AddDbContext<PersonsDbContext>(options => 
+            services.AddDbContext<InsurancesDbContext>(options => 
             {
-                options.UseNpgsql(_configuration.GetConnectionString("PersonsDatabase"), 
+                options.UseNpgsql(_configuration.GetConnectionString("InsurancesDatabase"), 
                     npgsqlOptions => 
                     {
                         npgsqlOptions.EnableRetryOnFailure(
@@ -41,9 +40,9 @@ namespace insurance_service
 
             // Enhanced Health Checks
             services.AddHealthChecks()
-                .AddDbContextCheck<PersonsDbContext>()
+                .AddDbContextCheck<InsurancesDbContext>()
                 .AddNpgSql(
-                    _configuration.GetConnectionString("PersonsDatabase"),
+                    _configuration.GetConnectionString("InsurancesDatabase"),
                     name: "database",
                     tags: new[] { "ready" })
                 .AddCheck("memory", () => 
@@ -95,7 +94,7 @@ namespace insurance_service
 
             // Automatic migrations for k8s deployments
             using var scope = app.ApplicationServices.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<PersonsDbContext>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<InsurancesDbContext>();
             dbContext.Database.Migrate();
         }
     }
