@@ -1,3 +1,10 @@
+resources:
+  repositories:
+  - repository: gitops
+    type: git
+    name: pminkows/gitops
+
+
 trigger:
   branches:
     include:
