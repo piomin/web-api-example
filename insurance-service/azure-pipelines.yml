@@ -4,7 +4,7 @@ trigger:
     - master
   paths:
     include:
-    - insurance-service/*
+    - insurance-service/**
 
 variables:
   solution: 'insurance-service/insurance-service.csproj'
