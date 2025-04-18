@@ -53,10 +53,9 @@ stages:
       displayName: 'Run Tests'
       inputs:
         command: 'test'
-        projects: '$(solution)'
+        projects: '**/insurance-service.tests/*.csproj'
         arguments: '--configuration $(buildConfiguration) --collect:"XPlat Code Coverage" --logger trx -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover'
         publishTestResults: true
-
     - task: PublishCodeCoverageResults@2
       displayName: 'Publish Code Coverage'
       inputs:
