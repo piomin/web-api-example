@@ -1,15 +1,22 @@
+resources:
+  repositories:
+  - repository: gitops
+    type: git
+    name: pminkows/gitops
+
+
 trigger:
   branches:
     include:
     - master
   paths:
     include:
-    - person-service/*
+    - insurance-service/**
 
 variables:
-  solution: 'person-service/person-service.csproj'
+  solution: 'insurance-service/insurance-service.csproj'
   buildConfiguration: 'Release'
-  imageStream: 'person-service'
+  imageStream: 'insurance-service'
 
 pool:
   name: Azure Pipelines
@@ -53,10 +60,9 @@ stages:
       displayName: 'Run Tests'
       inputs:
         command: 'test'
-        projects: 'dotnet test person-service.tests/person-service.tests.csproj'
+        projects: '**/insurance-service.tests/*.csproj'
         arguments: '--configuration $(buildConfiguration) --collect:"XPlat Code Coverage" --logger trx -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover'
         publishTestResults: true
-
     - task: PublishCodeCoverageResults@2
       displayName: 'Publish Code Coverage'
       inputs:
@@ -78,7 +84,7 @@ stages:
       displayName: 'Publish Build Artifacts'
       inputs:
         pathToPublish: '$(Build.ArtifactStagingDirectory)'
-        artifactName: 'person-service'
+        artifactName: 'insurance-service'
         publishLocation: 'Container'
 
 - stage: BuildImage
@@ -91,7 +97,7 @@ stages:
   - job: BuildOnOpenShift
     steps:
       - download: current
-        artifact: person-service
+        artifact: insurance-service
 
       - task: CmdLine@2
         inputs:
@@ -108,13 +114,13 @@ stages:
           script: |
             oc login $(OCP_CLUSTER) -u opentlc-mgr -p $(OCP_PASSWORD) --insecure-skip-tls-verify=true
             oc project demo-ci
-            ls $(Pipeline.Workspace)/person-service
+            ls $(Pipeline.Workspace)/insurance-service
         displayName: Login to OpenShift
 
       - task: CmdLine@2
         inputs:
           script: |
-            oc process person-service-build -o yaml -p IMAGE_TAG=$(appVersion) -p IMAGE_STREAM=$(imageStream) | oc apply -f -
+            oc process insurance-service-build -o yaml -p IMAGE_TAG=$(appVersion) -p IMAGE_STREAM=$(imageStream) | oc apply -f -
             oc process s2i-build-tmpl -o yaml -p IMAGE_TAG=$(appVersion) | oc apply -f -
         displayName: Create build
 
@@ -123,7 +129,7 @@ stages:
         inputs:
           script: |
             oc start-build $(imageStream) \
-              --from-dir=$(Pipeline.Workspace)/person-service \
+              --from-dir=$(Pipeline.Workspace)/insurance-service \
               --follow
 
       - task: CmdLine@2
@@ -178,9 +184,9 @@ stages:
             git config --global user.email "piotr.minkowski@gmail.com"
             git config --global user.name "Piotr Minkowski"
             git checkout main
-            yq e '.image.tag = "$(appVersion)"' -i apps/person-service/test/values.yaml
-            cat apps/person-service/test/values.yaml
-            git add apps/person-service/test/values.yaml
+            yq e '.image.tag = "$(appVersion)"' -i apps/insurance-service/test/values.yaml
+            cat apps/insurance-service/test/values.yaml
+            git add apps/insurance-service/test/values.yaml
             git commit -m "$(appVersion)"
             git remote -v
             git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main
@@ -212,9 +218,9 @@ stages:
                     git config --global user.email "piotr.minkowski@gmail.com"
                     git config --global user.name "Piotr Minkowski"
                     git checkout main
-                    yq e '.image.tag = "$(appVersion)"' -i apps/person-service/prod/values.yaml
-                    cat apps/person-service/prod/values.yaml
-                    git add apps/person-service/prod/values.yaml
+                    yq e '.image.tag = "$(appVersion)"' -i apps/insurance-service/prod/values.yaml
+                    cat apps/insurance-service/prod/values.yaml
+                    git add apps/insurance-service/prod/values.yaml
                     git commit -m "$(appVersion)"
                     git remote -v
                     git push https://$(System.AccessToken)@dev.azure.com/pminkows/pminkows/_git/gitops main

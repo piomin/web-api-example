@@ -3,6 +3,12 @@
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
         <RootNamespace>insurance_service</RootNamespace>
+        <Version>1.0.1</Version>
+        <IsPackable>true</IsPackable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>insurance-service</PackageId>
+        <Authors>piomin</Authors>
+        <Description>Insurance Service API</Description>
     </PropertyGroup>
 
     <ItemGroup>
