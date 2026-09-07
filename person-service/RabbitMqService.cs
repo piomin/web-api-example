@@ -37,6 +37,8 @@ namespace web_api_example
             await Task.Delay(Timeout.Infinite, stoppingToken);
         }
 
+        public bool IsConnected => _connection != null && _connection.IsOpen;
+
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
             if (_connection is not null)

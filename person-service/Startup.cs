@@ -45,11 +45,13 @@ namespace web_api_example
                     _configuration.GetConnectionString("PersonsDatabase"),
                     name: "database",
                     tags: new[] { "ready" })
-                .AddCheck("memory", () => 
+                .AddCheck("memory", () =>
                     HealthCheckResult.Healthy("Memory usage is normal"),
-                    tags: new[] { "live" });
+                    tags: new[] { "live" })
+                .AddCheck<RabbitMqHealthCheck>("rabbitmq", tags: new[] { "ready" });
 
-            services.AddHostedService<RabbitMqService>();
+            services.AddSingleton<RabbitMqService>();
+            services.AddHostedService(sp => sp.GetRequiredService<RabbitMqService>());
 
             services.AddControllers();
             
