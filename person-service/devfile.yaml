@@ -24,9 +24,10 @@ components:
     - -f
     - /dev/null
     endpoints:
-    - name: https-dotnet60
+    - name: https-dotnet90
       protocol: https
       targetPort: 8080
+      exposure: public
     env:
     - name: CONFIGURATION
       value: Debug
@@ -36,7 +37,7 @@ components:
       value: Development
     - name: ASPNETCORE_URLS
       value: http://*:8080
-    image: registry.access.redhat.com/ubi8/dotnet-70:latest
+    image: registry.access.redhat.com/ubi8/dotnet-90:9.0
     mountSources: true
   name: dotnet
 - name: postgresql
@@ -63,6 +64,33 @@ components:
 - name: postgresql-storage
   volume:
     size: 256Mi
+- name: rabbitmq
+  container:
+    image: docker.io/library/rabbitmq:3-management
+    env:
+      - name: RABBITMQ_DEFAULT_USER
+        value: dotnet
+      - name: RABBITMQ_DEFAULT_PASS
+        value: dotnet123
+      - name: RABBITMQ_DEFAULT_VHOST
+        value: /
+    endpoints:
+      - name: rabbitmq-amqp
+        exposure: internal
+        targetPort: 5672
+        attributes:
+          discoverable: 'true'
+      - name: rabbitmq-mgmt
+        exposure: internal
+        targetPort: 15672
+    memoryLimit: 512Mi
+    mountSources: false
+    volumeMounts:
+      - name: rabbitmq-storage
+        path: /var/lib/rabbitmq
+- name: rabbitmq-storage
+  volume:
+    size: 256Mi
 metadata:
   description: .NET 7.0 application
   displayName: .NET 7.0
@@ -72,15 +100,6 @@ metadata:
   projectType: dotnet
   tags:
   - .NET
-  - .NET 7.0
+  - .NET 9.0
   version: 1.0.3
 schemaVersion: 2.2.0
-starterProjects:
-- git:
-    checkoutFrom:
-      remote: origin
-      revision: dotnet-7.0
-    remotes:
-      origin: https://github.com/redhat-developer/s2i-dotnetcore-ex
-  name: dotnet60-example
-  subDir: app

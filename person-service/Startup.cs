@@ -49,6 +49,8 @@ namespace web_api_example
                     HealthCheckResult.Healthy("Memory usage is normal"),
                     tags: new[] { "live" });
 
+            services.AddHostedService<RabbitMqService>();
+
             services.AddControllers();
             
             services.AddSwaggerGen(c =>
